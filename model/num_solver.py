@@ -4,6 +4,8 @@ import scipy.sparse.linalg as linalg
 tau = 1 / 255
 
 
+
+
 class QuadraticIE:
     """
     Quadratic Interpolation / Extrapolation object. Used for option ask/bid price and implied volatility extrapolation
@@ -47,7 +49,7 @@ class DataBlock:
         :param stock_bid: current stock bid price
         """
         self.date = today
-        for i in {option_ask, option_bid, volatility}:
+        for i in [option_ask, option_bid, volatility]:
             assert len(i) == 3
         for i in {stock_ask, stock_bid}:
             assert type(i) == float
@@ -91,7 +93,9 @@ class DataBlock:
                 serial = i_t * m + j_x
                 # vector b
                 vector_b[serial] = 2 * beta * self.func_aux(x_value, t_value)
-                # matrix A, if not at boundary
+                # matrix A,
+                matrix_A[serial, serial] += beta
+                # if not at boundary
                 if i_t != 0 and (j_x != 0 and j_x != m-1):
                     # dt^2 term
                     matrix_A[serial, serial] += 1 / step_t
@@ -123,7 +127,7 @@ class DataBlock:
     def solve(self):
         assert self.system is not None
         A, b = self.system
-        return linalg.cg(A, b)
+        return linalg.bicg(A, b)
 
 
 """
@@ -151,3 +155,10 @@ def construct_A(s_a: float, s_b: float):
 def construct_sigma_squared(volatility: QuadraticIE):
     return lambda t: volatility.at_time(t) ** 2
 
+
+test_block = DataBlock(today='10/19/2016',\
+                       option_ask = [8.44999981, 8.55000019, 9.10000038],\
+                       option_bid = [7.05000019, 7.8499999, 8.5],\
+                       volatility = [39.456, 38.061, 37.096],\
+                       stock_ask = 40.66,\
+                       stock_bid = 40.65)
