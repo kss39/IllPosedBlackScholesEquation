@@ -1,9 +1,7 @@
 import numpy as np
 import scipy.sparse.linalg as linalg
 
-tau = 1 / 255
-
-
+tau = 1.0
 
 
 class QuadraticIE:
@@ -127,7 +125,7 @@ class DataBlock:
     def solve(self):
         assert self.system is not None
         A, b = self.system
-        return linalg.bicg(A, b)
+        return linalg.cgs(A, b)
 
 
 """
@@ -155,10 +153,24 @@ def construct_A(s_a: float, s_b: float):
 def construct_sigma_squared(volatility: QuadraticIE):
     return lambda t: volatility.at_time(t) ** 2
 
+# For test only
+block = DataBlock(today='10/19/2016',\
+                       option_ask = [0.86, 0.86, 0.86],\
+                       option_bid = [0.84, 0.85, 0.85],\
+                       volatility = [0.39456, 0.38061, 0.37096],\
+                       stock_ask = 4.66,\
+                       stock_bid = 4.65)
 
-test_block = DataBlock(today='10/19/2016',\
-                       option_ask = [8.44999981, 8.55000019, 9.10000038],\
-                       option_bid = [7.05000019, 7.8499999, 8.5],\
-                       volatility = [39.456, 38.061, 37.096],\
-                       stock_ask = 40.66,\
-                       stock_bid = 40.65)
+print(block.create_system(5, 0.01))
+print(block.solve())
+
+# test_block = DataBlock(today='10/19/2016',\
+#                        option_ask = [8.44999981, 8.55000019, 9.10000038],\
+#                        option_bid = [7.05000019, 7.8499999, 8.5],\
+#                        volatility = [0.39456, 0.38061, 0.37096],\
+#                        stock_ask = 40.66,\
+#                        stock_bid = 40.65)
+
+# TODO:
+# 1. volatility should divide by 100
+# 2. change tau to 1 instead of 1/255
