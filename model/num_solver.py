@@ -1,7 +1,10 @@
 import numpy as np
 import scipy.sparse.linalg as linalg
 
-tau = 1.0
+from . import toeplitz_matrix as tm
+
+tau = 1 / 255
+m = 100
 
 
 class QuadraticIE:
@@ -10,8 +13,9 @@ class QuadraticIE:
     in DataBlock.
     """
 
-    def __init__(self, day_one, day_two, day_three):
+    def __init__(self, day_one, day_two, day_three, stock_price=0.0):
         self.fit_function = np.poly1d(np.polyfit([-2 * tau, -1 * tau, 0], [day_one, day_two, day_three], 2))
+        self.stock = stock_price
 
     def at_day(self, day: int):
         """
@@ -23,7 +27,7 @@ class QuadraticIE:
 
     def at_time(self, time):
         """
-        Evalue the function at the given time. Note the difference with at_day.
+        Evaluate the function at the given time. Note the difference with at_day.
         :param time: the given time. Right now is 0, the next year is 1.
         :return: the value at the given time.
         """
@@ -51,16 +55,15 @@ class DataBlock:
             assert len(i) == 3
         for i in {stock_ask, stock_bid}:
             assert type(i) == float
-        self.u_a = QuadraticIE(*option_ask)
-        self.u_b = QuadraticIE(*option_bid)
-        self.volatility = QuadraticIE(*volatility)
         self.s_a = stock_ask
         self.s_b = stock_bid
+        self.u_a = QuadraticIE(*option_ask, self.s_a)
+        self.u_b = QuadraticIE(*option_bid, self.s_b)
+        self.volatility = QuadraticIE(*volatility)
         # Construct the auxiliary function F
-        self.func_aux = construct_F(self.u_a, self.u_b)
-        self.func_ax = construct_A(self.s_a, self.s_b)
+        self.func_aux = construct_F_cont(self.u_a, self.u_b)
+        # self.func_ax = construct_A(self.s_a, self.s_b)
         self.func_sigma2 = construct_sigma_squared(self.volatility)
-        # self.m is the grid_count.
         # self.system is the system of equation Ax=b.
         self.m = None
         self.beta = None
@@ -78,54 +81,20 @@ class DataBlock:
             return self.system
         self.m = m
         self.beta = beta
-        matrix_A = np.zeros((m*m, m*m))
-        vector_b = np.zeros(m*m)
 
-        # Step sizes of x and t.
-        step_x = 1 / (m - 1)
-        step_t = 2 * tau / (m - 1)
-        for i_t in range(m):
-            t_value = i_t * step_t
-            for j_x in range(m):
-                x_value = j_x * step_x
-                serial = i_t * m + j_x
-                # vector b
-                vector_b[serial] = 2 * beta * self.func_aux(x_value, t_value)
-                # matrix A,
-                matrix_A[serial, serial] += beta
-                # if not at boundary
-                if i_t != 0 and (j_x != 0 and j_x != m-1):
-                    # dt^2 term
-                    matrix_A[serial, serial] += 1 / step_t
-                    matrix_A[serial-m, serial] -= 2 / step_t
-                    matrix_A[serial-m, serial-m] += 1 / step_t
-                    # dxdt term
-                    coeff = self.func_sigma2(t_value) * self.func_ax(x_value) / step_t / (step_x ** 2)
-                    matrix_A[serial, serial+1] += coeff
-                    matrix_A[serial, serial] -= 2 * coeff
-                    matrix_A[serial-1, serial] += coeff
-                    matrix_A[serial-m, serial+1] -= coeff
-                    matrix_A[serial-m, serial] += 2 * coeff
-                    matrix_A[serial-m, serial-1] -= coeff
-                    # dx^2 term
-                    sq_coeff = (self.func_sigma2(t_value) * self.func_ax(x_value) / step_x) ** 2
-                    matrix_A[serial+1, serial+1] += sq_coeff
-                    matrix_A[serial, serial] += 4 * sq_coeff
-                    matrix_A[serial - 1, serial - 1] += sq_coeff
-                    matrix_A[serial, serial+1] -= 4 * sq_coeff
-                    matrix_A[serial-1, serial] -= 4 * sq_coeff
-                    matrix_A[serial-1, serial+1] += 2 * sq_coeff
+        f_cont = construct_F_cont(self.u_a, self.u_b)
+        f_matrix = construct_F_matrix(f_cont, m, self.s_b, self.s_a)
 
-        # TODO: ask Kirill about the *2 thing.
-        matrix_A *= 2
-
-        self.system = (matrix_A, vector_b)
-        return self.system
+        s = np.linspace(self.s_b, self.s_a, self.m)
+        t = np.linspace(0, 2 * tau, m)
+        meshgrid = np.meshgrid(s, t)
+        lu = A(tm.D_t(m, 2 * tau / m), tm.D_ss(m, self.s_a - self.s_b), R(meshgrid, self.func_sigma2))
+        self.system = (lu, f_matrix)
 
     def solve(self):
-        assert self.system is not None
-        A, b = self.system
-        return linalg.cgs(A, b)
+        lu, f_matrix = self.system
+        result = linalg.cg(lu.T @ lu, self.beta * f_matrix)
+        return result[0]
 
 
 """
@@ -133,36 +102,78 @@ Below are auxiliary functions.
 """
 
 
-def construct_F(option_ask: QuadraticIE, option_bid: QuadraticIE):
+#
+# def construct_F_cont(option_ask: QuadraticIE, option_bid: QuadraticIE):
+#     """
+#     Returns a function to evaluate the function F(x, t) defined in Paper pg. 7
+#     :param option_ask: the option ask price
+#     :param option_bid: the option bid price
+#     :return: a function to evaluate the function F(x, t)
+#     """
+#     return lambda x, t: x * (option_ask.at_time(t) - option_bid.at_time(t)) + option_bid.at_time(t)
+
+
+def construct_F_cont(option_ask: QuadraticIE, option_bid: QuadraticIE):
     """
-    Returns a function to evaluate the function F(x, t) defined in Paper pg. 7
+    Returns a function to evaluate the function F(x, t) defined in new paper pg. 11
     :param option_ask: the option ask price
     :param option_bid: the option bid price
     :return: a function to evaluate the function F(x, t)
     """
-    return lambda x, t: x * (option_ask.at_time(t) - option_bid.at_time(t)) + option_bid.at_time(t)
+    s_a = option_ask.stock
+    s_b = option_bid.stock
+    return lambda s, t: \
+        s * (option_bid.at_time(t) - option_ask.at_time(t)) / (s_b - s_a) + \
+        (option_ask.at_time(t) * s_b - option_bid.at_time(t) * s_a) / (s_b - s_a)
 
 
-def construct_A(s_a: float, s_b: float):
-    """Returns a function evaluating A(x) on the given day.
+def construct_F_matrix(func, m: int, s_b: float, s_a: float):
     """
-    diff = s_a - s_b
-    return lambda x: (255 / 2) * (((x * diff) + s_b) ** 2) / (diff ** 2)
+    Evaluates the auxiliary function F in the mesh grid space Q_2tau.
+
+    :param func: the continuous function F
+    :param m: the parameter M
+    :param s_b: stock bid price
+    :param s_a: stock ask price
+    :return: a m*m dimension vector representing the F in finite elements
+    """
+    s = np.linspace(s_b, s_a, m)
+    t = np.linspace(0, 2 * tau, m)
+    grid = np.stack(np.meshgrid(s, t))
+    return func(*grid).reshape(-1)
+
+
+# def construct_A(s_a: float, s_b: float):
+#     """Returns a function evaluating A(x) on the given day.
+#     """
+#     diff = s_a - s_b
+#     return lambda x: (255 / 2) * (((x * diff) + s_b) ** 2) / (diff ** 2)
 
 
 def construct_sigma_squared(volatility: QuadraticIE):
     return lambda t: volatility.at_time(t) ** 2
 
-# For test only
-block = DataBlock(today='10/19/2016',\
-                       option_ask = [0.86, 0.86, 0.86],\
-                       option_bid = [0.84, 0.85, 0.85],\
-                       volatility = [0.39456, 0.38061, 0.37096],\
-                       stock_ask = 4.66,\
-                       stock_bid = 4.65)
 
-print(block.create_system(5, 0.01))
-print(block.solve())
+def R(meshgrid, sigma_squared_func):
+    x_values, t_values = meshgrid
+    origin_matrix = (x_values ** 2) * sigma_squared_func(t_values) / 2
+    reshaped = origin_matrix.reshape(-1)
+    return np.diag(reshaped)
+
+
+def A(D_t, D_ss, R):
+    return D_t + R @ D_ss
+
+# For test only
+# block = DataBlock(today='10/19/2016',\
+#                        option_ask = [0.86, 0.86, 0.86],\
+#                        option_bid = [0.84, 0.85, 0.85],\
+#                        volatility = [0.39456, 0.38061, 0.37096],\
+#                        stock_ask = 4.66,\
+#                        stock_bid = 4.65)
+#
+# print(block.create_system(5, 0.01))
+# print(block.solve())
 
 # test_block = DataBlock(today='10/19/2016',\
 #                        option_ask = [8.44999981, 8.55000019, 9.10000038],\
