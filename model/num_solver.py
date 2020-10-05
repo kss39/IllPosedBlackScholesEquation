@@ -94,7 +94,7 @@ class DataBlock:
     def solve(self):
         lu, f_matrix = self.system
         result = linalg.cg(lu.T @ lu, self.beta * f_matrix)
-        return result[0]
+        return result
 
 
 """
