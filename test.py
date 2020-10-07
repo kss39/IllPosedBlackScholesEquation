@@ -9,9 +9,10 @@ block = ns.DataBlock(today='10/19/2016',\
                        stock_ask = 4.66,\
                        stock_bid = 4.65)
 
-m = 20
-print(block.create_system(m, 0.01))
+m = 10
+print(block.create_system(m, 0.75))
 result = block.solve()
-solution = result[0].reshape((m,m))
+solution = result.x.reshape((m-1,m-2))
+print(solution)
 
-print(solution[m-1][math.floor(m/2):math.ceil(m/2) + 1], result[1])
+print(solution[m-2][math.floor(m-2/2):math.ceil(m-2/2) + 1])

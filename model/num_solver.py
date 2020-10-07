@@ -1,5 +1,8 @@
 import numpy as np
 import scipy.sparse.linalg as linalg
+from scipy.optimize import minimize
+
+from scipy.linalg import inv
 
 from . import toeplitz_matrix as tm
 
@@ -84,17 +87,44 @@ class DataBlock:
 
         f_cont = construct_F_cont(self.u_a, self.u_b)
         f_matrix = construct_F_matrix(f_cont, m, self.s_b, self.s_a)
+        f_vector = f_matrix.reshape(-1)
+
+        u_bd = np.zeros((m, m))
+        u_bd[0] = f_matrix[0]
+        u_bd[:, 0] = f_matrix[:, 0]
+        u_bd[:, -1] = f_matrix[:, -1]
+        u_bd = u_bd.reshape(-1)
+
+        boundary_indices = np.ones((m, m), dtype=bool)
+        boundary_indices[0] = False
+        boundary_indices[:, 0] = False
+        boundary_indices[:, -1] = False
+        boundary_indices = boundary_indices.reshape(-1)
 
         s = np.linspace(self.s_b, self.s_a, self.m)
         t = np.linspace(0, 2 * tau, m)
         meshgrid = np.meshgrid(s, t)
         lu = A(tm.D_t(m, 2 * tau / m), tm.D_ss(m, self.s_a - self.s_b), R(meshgrid, self.func_sigma2))
-        self.system = (lu, f_matrix)
+
+        b_rhs = - lu @ u_bd
+
+        lu = lu[:, boundary_indices]
+        lu = lu[boundary_indices]
+        b_rhs = b_rhs[boundary_indices]
+        f_vector = f_vector[boundary_indices]
+
+        j_beta = lambda u: np.linalg.norm(lu @ u - b_rhs) ** 2 + beta * np.linalg.norm(u - f_vector) ** 2
+
+        self.j_beta = j_beta
 
     def solve(self):
-        lu, f_matrix = self.system
-        result = linalg.cg(lu.T @ lu, self.beta * f_matrix)
-        return result
+        result_u = np.zeros(self.m ** 2 - 3 * self.m + 2)
+        return minimize(self.j_beta, result_u, method='CG')
+
+        # lu, f_matrix = self.system
+        # result = inv(lu.T @ lu + np.identity(self.m**2)) @ (self.beta * f_matrix)
+        # # result = linalg.cg(lu.T @ lu, self.beta * f_matrix)
+        # return result
 
 
 """
@@ -140,7 +170,7 @@ def construct_F_matrix(func, m: int, s_b: float, s_a: float):
     s = np.linspace(s_b, s_a, m)
     t = np.linspace(0, 2 * tau, m)
     grid = np.stack(np.meshgrid(s, t))
-    return func(*grid).reshape(-1)
+    return func(*grid)
 
 
 # def construct_A(s_a: float, s_b: float):
@@ -156,8 +186,8 @@ def construct_sigma_squared(volatility: QuadraticIE):
 
 def R(meshgrid, sigma_squared_func):
     x_values, t_values = meshgrid
-    origin_matrix = (x_values ** 2) * sigma_squared_func(t_values) / 2
-    reshaped = origin_matrix.reshape(-1)
+    original_matrix = (x_values ** 2) * sigma_squared_func(t_values) / 2
+    reshaped = original_matrix.reshape(-1)
     return np.diag(reshaped)
 
 
