@@ -63,48 +63,48 @@ class DataBlock:
         self.u_a = QuadraticIE(*option_ask, self.s_a)
         self.u_b = QuadraticIE(*option_bid, self.s_b)
         self.volatility = QuadraticIE(*volatility)
-        # Construct the auxiliary function F
         self.func_aux = construct_F_cont(self.u_a, self.u_b)
-        # self.func_ax = construct_A(self.s_a, self.s_b)
         self.func_sigma2 = construct_sigma_squared(self.volatility)
-        # self.system is the system of equation Ax=b.
         self.m = None
         self.beta = None
-        self.system = None
+        self.j_beta = None
 
-    def create_system(self, m: int, beta: float):
+    def create_system(self, grid_count: int, beta: float):
         """
         Creates the system of equation with grid count m.
+        Returns the Tikhonov-like functional J_beta which needs minimization.
 
-        :param m: the grid count
+        :param grid_count: the grid count
         :param beta: the regularization parameter
-        :return: the system (A, b) which is in the equation Ax = b.
+        :return: the Tikhonov-like functional J_beta
         """
-        if self.m == m and self.beta == beta:
-            return self.system
-        self.m = m
+        if self.m == grid_count and self.beta == beta:
+            return self.j_beta
+        self.m = grid_count
         self.beta = beta
 
         f_cont = construct_F_cont(self.u_a, self.u_b)
-        f_matrix = construct_F_matrix(f_cont, m, self.s_b, self.s_a)
+        f_matrix = construct_F_matrix(f_cont, grid_count, self.s_b, self.s_a)
         f_vector = f_matrix.reshape(-1)
 
-        u_bd = np.zeros((m, m))
+        u_bd = np.zeros((grid_count, grid_count))
         u_bd[0] = f_matrix[0]
         u_bd[:, 0] = f_matrix[:, 0]
         u_bd[:, -1] = f_matrix[:, -1]
         u_bd = u_bd.reshape(-1)
 
-        boundary_indices = np.ones((m, m), dtype=bool)
+        boundary_indices = np.ones((grid_count, grid_count), dtype=bool)
         boundary_indices[0] = False
         boundary_indices[:, 0] = False
         boundary_indices[:, -1] = False
         boundary_indices = boundary_indices.reshape(-1)
 
         s = np.linspace(self.s_b, self.s_a, self.m)
-        t = np.linspace(0, 2 * tau, m)
+        t = np.linspace(0, 2 * tau, grid_count)
         meshgrid = np.meshgrid(s, t)
-        lu = A(tm.D_t(m, 2 * tau / m), tm.D_ss(m, self.s_a - self.s_b), R(meshgrid, self.func_sigma2))
+        lu = A(tm.D_t(grid_count, 2 * tau / grid_count),
+               tm.D_ss(grid_count, self.s_a - self.s_b),
+               R(meshgrid, self.func_sigma2))
 
         b_rhs = - lu @ u_bd
 
@@ -113,38 +113,31 @@ class DataBlock:
         b_rhs = b_rhs[boundary_indices]
         f_vector = f_vector[boundary_indices]
 
+        # Normalize each row of the system Ax = b, to prevent float overflowing
         norms = np.linalg.norm(lu, axis=1)
         lu /= norms
         b_rhs /= norms
 
-        j_beta = lambda u: np.linalg.norm(lu @ u - b_rhs) ** 2 + beta * np.linalg.norm(u - f_vector) ** 2
-
+        # Construct the Tikhonov-like functional
+        def j_beta(u):
+            return np.linalg.norm(lu @ u - b_rhs) ** 2 + beta * np.linalg.norm(u - f_vector) ** 2
         self.j_beta = j_beta
 
+        return j_beta
+
     def solve(self):
+        """
+        Solves the DataBlock. If the J_beta hasn't been created yet, it will throw an error.
+
+        :return: a scipy.optimize.OptimizeResult representing the minimizer
+        """
         result_u = np.zeros(self.m ** 2 - 3 * self.m + 2)
         return minimize(self.j_beta, result_u, method='CG')
-
-        # lu, f_matrix = self.system
-        # result = inv(lu.T @ lu + np.identity(self.m**2)) @ (self.beta * f_matrix)
-        # # result = linalg.cg(lu.T @ lu, self.beta * f_matrix)
-        # return result
 
 
 """
 Below are auxiliary functions.
 """
-
-
-#
-# def construct_F_cont(option_ask: QuadraticIE, option_bid: QuadraticIE):
-#     """
-#     Returns a function to evaluate the function F(x, t) defined in Paper pg. 7
-#     :param option_ask: the option ask price
-#     :param option_bid: the option bid price
-#     :return: a function to evaluate the function F(x, t)
-#     """
-#     return lambda x, t: x * (option_ask.at_time(t) - option_bid.at_time(t)) + option_bid.at_time(t)
 
 
 def construct_F_cont(option_ask: QuadraticIE, option_bid: QuadraticIE):
@@ -177,18 +170,24 @@ def construct_F_matrix(func, m: int, s_b: float, s_a: float):
     return func(*grid)
 
 
-# def construct_A(s_a: float, s_b: float):
-#     """Returns a function evaluating A(x) on the given day.
-#     """
-#     diff = s_a - s_b
-#     return lambda x: (255 / 2) * (((x * diff) + s_b) ** 2) / (diff ** 2)
-
-
 def construct_sigma_squared(volatility: QuadraticIE):
+    """
+    Returns a function to evaluate the function sigma^2(t).
+
+    :param volatility: the extrapolated volatility.
+    :return: the sigma^2(t) function
+    """
     return lambda t: volatility.at_time(t) ** 2
 
 
 def R(meshgrid, sigma_squared_func):
+    """
+    Returns a diagonal matrix with elements corresponding to the factor sigma^2(t) * s^2 / 2.
+
+    :param meshgrid: Provided meshgrid of Q_2tau.
+    :param sigma_squared_func: The sigma^2(t) function
+    :return: the R diagonal matrix.
+    """
     x_values, t_values = meshgrid
     original_matrix = (x_values ** 2) * sigma_squared_func(t_values) / 2
     reshaped = original_matrix.reshape(-1)
@@ -196,26 +195,12 @@ def R(meshgrid, sigma_squared_func):
 
 
 def A(D_t, D_ss, R):
+    """
+    Construct the differential operator in matrix (discrete approximation) form.
+
+    :param D_t: D_t toeplitz matrix
+    :param D_ss: D_ss toeplitz matrix
+    :param R: R diagonal matrix
+    :return: A (Lu, the differential operator)
+    """
     return D_t + R @ D_ss
-
-# For test only
-# block = DataBlock(today='10/19/2016',\
-#                        option_ask = [0.86, 0.86, 0.86],\
-#                        option_bid = [0.84, 0.85, 0.85],\
-#                        volatility = [0.39456, 0.38061, 0.37096],\
-#                        stock_ask = 4.66,\
-#                        stock_bid = 4.65)
-#
-# print(block.create_system(5, 0.01))
-# print(block.solve())
-
-# test_block = DataBlock(today='10/19/2016',\
-#                        option_ask = [8.44999981, 8.55000019, 9.10000038],\
-#                        option_bid = [7.05000019, 7.8499999, 8.5],\
-#                        volatility = [0.39456, 0.38061, 0.37096],\
-#                        stock_ask = 40.66,\
-#                        stock_bid = 40.65)
-
-# TODO:
-# 1. volatility should divide by 100
-# 2. change tau to 1 instead of 1/255

@@ -9,7 +9,7 @@ block = ns.DataBlock(today='10/19/2016',\
                        stock_ask = 4.66,\
                        stock_bid = 4.65)
 
-m = 40
+m = 30
 beta = 0.75
 
 block.create_system(m, beta)

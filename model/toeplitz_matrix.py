@@ -6,7 +6,10 @@ def D_t(m: int, dt: float):
     diff[0][0] = 0
     for i in range(1, m):
         diff[i][i - 1] = -1
-    matrix = np.kron(diff, np.identity(m)) / dt
+    identity_except_bound = np.identity(m)
+    identity_except_bound[0, 0] = 0
+    identity_except_bound[-1, -1] = 0
+    matrix = np.kron(diff, identity_except_bound) / dt
     return matrix
 
 
@@ -17,7 +20,9 @@ def D_ss(m: int, ds: float):
     for i in range(1, m-1):
         diff[i][i - 1] = -1
         diff[i][i + 1] = -1
-    matrix = np.kron(np.identity(m), diff) / (ds ** 2)
+    identity_except_init = np.identity(m)
+    identity_except_init[0, 0] = 0
+    matrix = np.kron(identity_except_init, diff) / (ds ** 2)
     return matrix
 
 
