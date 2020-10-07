@@ -9,10 +9,13 @@ block = ns.DataBlock(today='10/19/2016',\
                        stock_ask = 4.66,\
                        stock_bid = 4.65)
 
-m = 10
-print(block.create_system(m, 0.75))
+m = 40
+beta = 0.75
+
+block.create_system(m, beta)
 result = block.solve()
 solution = result.x.reshape((m-1,m-2))
+print('Minimizer is:')
 print(solution)
 
-print(solution[m-2][math.floor(m-2/2):math.ceil(m-2/2) + 1])
+print('Estimates for 1tau and 2tau: ', solution[[math.ceil(m/2-1), m-2], math.ceil((m-2)/2)])

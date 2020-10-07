@@ -113,6 +113,10 @@ class DataBlock:
         b_rhs = b_rhs[boundary_indices]
         f_vector = f_vector[boundary_indices]
 
+        norms = np.linalg.norm(lu, axis=1)
+        lu /= norms
+        b_rhs /= norms
+
         j_beta = lambda u: np.linalg.norm(lu @ u - b_rhs) ** 2 + beta * np.linalg.norm(u - f_vector) ** 2
 
         self.j_beta = j_beta
