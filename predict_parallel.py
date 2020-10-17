@@ -25,20 +25,21 @@ beta = 0.01
 def predict(file):
     df = pd.read_csv(file)
 
-    output_dt = pd.DataFrame(output_dictionary)
     day_count = len(df)
-    # TODO: Debug!
-    day_count = 20
+    # # TODO: Debug!
+    # day_count = 20
     manager = mp.Manager()
     output_dt_lock = manager.Lock()
+    namespace = manager.Namespace()
+    namespace.df = pd.DataFrame(output_dictionary)
     with mp.Pool(processes=mp.cpu_count(), initargs=(output_dt_lock,)) as pool:
-        pool.starmap(solve, [(i, df, output_dt, output_dt_lock, day_count) for i in range(2, day_count-2)])
+        pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count) for i in range(2, day_count-2)])
     filename = Path(file).stem
     output_file = f'output/prediction/{filename}_prediction.csv'
-    output_dt.to_csv(output_file)
+    namespace.df.to_csv(output_file)
 
 
-def solve(i, df, output, output_lock, day_count):
+def solve(i, df, namespace, output_lock, day_count):
     today = df['DATE'][i]
     data_block = df.iloc[i - 2:i + 1]
     if len(set(data_block['OPTION_NAME'])) != 1:
@@ -70,7 +71,7 @@ def solve(i, df, output, output_lock, day_count):
                'estimates': solution, 'real': real_future}
         output_lock.acquire()
         try:
-            output = output.append(row, ignore_index=True)
+            namespace.df = namespace.df.append(row, ignore_index=True)
             print(f'Solved {option_name} on {today}, finished {i - 1}/{day_count - 4}')
         finally:
             output_lock.release()
@@ -85,7 +86,7 @@ if __name__ == '__main__':
         print('Usage: python predict.py [grid_count] [beta] [folder]')
         sys.exit(-1)
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = 1
+    os.environ['MKL_NUM_THREADS'] = '1'
     grid_count = int(sys.argv[1])
     beta = float(sys.argv[2])
     folder = sys.argv[3]
