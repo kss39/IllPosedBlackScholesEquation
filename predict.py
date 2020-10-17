@@ -12,6 +12,7 @@ def predict(file, grid_count, beta):
     output_dictionary = {'option_name': [], 'input': [], 'grid_count': [], 'beta': [], 'date': [], 'estimates': [], 'real': []}
     output_dt = pd.DataFrame(output_dictionary)
     day_count = len(df)
+    day_count = 20
     for i in range(2, day_count-2):
         today = df['DATE'][i]
         data_block = df.iloc[i - 2:i + 1]
@@ -54,6 +55,7 @@ def predict(file, grid_count, beta):
     output_dt.to_csv(output_file)
 
 
+# Time testing: grid=20, beta=0.01, 16 blocks, 100.04s
 if __name__ == '__main__':
     if not len(sys.argv) == 4:
         print('Usage: python predict.py [grid_count] [beta] [folder]')
