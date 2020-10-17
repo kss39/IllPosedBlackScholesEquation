@@ -1,5 +1,6 @@
 import math
 import sys
+import os
 
 import pandas as pd
 import numpy as np
@@ -83,6 +84,8 @@ if __name__ == '__main__':
     if not len(sys.argv) == 4:
         print('Usage: python predict.py [grid_count] [beta] [folder]')
         sys.exit(-1)
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = 1
     grid_count = int(sys.argv[1])
     beta = float(sys.argv[2])
     folder = sys.argv[3]
