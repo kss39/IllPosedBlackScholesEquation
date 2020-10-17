@@ -17,7 +17,8 @@ class QuadraticIE:
     """
 
     def __init__(self, day_one, day_two, day_three, stock_price=0.0):
-        self.fit_function = np.poly1d(np.polyfit([-2 * tau, -1 * tau, 0], [day_one, day_two, day_three], 2))
+        self.to_list = [day_one, day_two, day_three]
+        self.fit_function = np.poly1d(np.polyfit([-2 * tau, -1 * tau, 0], self.to_list, 2))
         self.stock = stock_price
 
     def at_day(self, day: int):
@@ -68,6 +69,18 @@ class DataBlock:
         self.m = None
         self.beta = None
         self.j_beta = None
+
+    def data(self):
+        """
+        :return: A string version of the input data.
+        """
+        string_dict = {'today': self.date,
+                       'option_ask': self.u_a.to_list,
+                       'option_bid': self.u_b.to_list,
+                       'stock_ask': self.s_a,
+                       'stock_bid': self.s_b,
+                       'volatility': self.volatility.to_list}
+        return str(string_dict)
 
     def create_system(self, grid_count: int, beta: float):
         """

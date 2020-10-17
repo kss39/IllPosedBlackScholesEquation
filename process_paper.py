@@ -6,7 +6,7 @@ from pathlib import Path
 from model import num_solver as ns
 
 grid = 20
-beta = 2
+beta = 0.01
 folder = "./resources/paper_data"
 output_folder = "./output/paper_data"
 
