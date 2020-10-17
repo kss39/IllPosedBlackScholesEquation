@@ -26,6 +26,8 @@ def predict(file):
 
     output_dt = pd.DataFrame(output_dictionary)
     day_count = len(df)
+    # TODO: Debug!
+    day_count = 20
     manager = mp.Manager()
     output_dt_lock = manager.Lock()
     with mp.Pool(processes=mp.cpu_count(), initargs=(output_dt_lock,)) as pool:
@@ -76,6 +78,7 @@ def solve(i, df, output, output_lock, day_count):
 
 
 # Time testing: grid=20, beta=0.01, 16 blocks, 64.26s
+# After disabling Numpy parallel: 28.36s
 if __name__ == '__main__':
     if not len(sys.argv) == 4:
         print('Usage: python predict.py [grid_count] [beta] [folder]')
