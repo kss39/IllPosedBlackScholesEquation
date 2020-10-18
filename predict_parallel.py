@@ -90,6 +90,9 @@ if __name__ == '__main__':
     grid_count = int(sys.argv[1])
     beta = float(sys.argv[2])
     folder = sys.argv[3]
-    for file in glob.glob(f'{folder}/*.csv'):
-        print(f'Processing {file}:')
-        predict(file)
+    if os.path.isdir(folder):
+        for file in glob.glob(f'{folder}/*.csv'):
+            print(f'Processing {file}:')
+            predict(file)
+    else:
+        predict(folder)
