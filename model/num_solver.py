@@ -116,7 +116,7 @@ class DataBlock:
         t = np.linspace(0, 2 * tau, grid_count)
         meshgrid = np.meshgrid(s, t)
         lu = A(tm.D_t(grid_count, 2 * tau / grid_count),
-               tm.D_ss(grid_count, self.s_a - self.s_b),
+               tm.D_ss(grid_count, (self.s_a - self.s_b) / grid_count),
                R(meshgrid, self.func_sigma2))
 
         b_rhs = - lu @ u_bd
@@ -128,7 +128,7 @@ class DataBlock:
 
         # Normalize each row of the system Ax = b, to prevent float overflowing
         norms = np.linalg.norm(lu, axis=1)
-        lu /= norms
+        lu = (lu.T / norms).T
         b_rhs /= norms
 
         # Construct the Tikhonov-like functional
