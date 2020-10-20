@@ -22,7 +22,7 @@ grid_count = 20
 beta = 0.01
 
 
-def predict(file):
+def predict(file, cpu_count):
     df = pd.read_csv(file)
 
     day_count = len(df)
@@ -32,7 +32,7 @@ def predict(file):
     output_dt_lock = manager.Lock()
     namespace = manager.Namespace()
     namespace.df = pd.DataFrame(output_dictionary)
-    with mp.Pool(processes=mp.cpu_count(), initargs=(output_dt_lock,)) as pool:
+    with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
         pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count) for i in range(2, day_count-2)])
     filename = Path(file).stem
     output_file = f'output/prediction/{filename}_prediction.csv'
@@ -82,17 +82,18 @@ def solve(i, df, namespace, output_lock, day_count):
 # Time testing: grid=20, beta=0.01, 16 blocks, 64.26s
 # After disabling Numpy parallel: 28.36s
 if __name__ == '__main__':
-    if not len(sys.argv) == 4:
-        print('Usage: python predict.py [grid_count] [beta] [folder]')
+    if not len(sys.argv) == 5:
+        print('Usage: python predict.py [grid_count] [beta] [folder] [cpu_count]')
         sys.exit(-1)
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
     os.environ['MKL_NUM_THREADS'] = '1'
     grid_count = int(sys.argv[1])
     beta = float(sys.argv[2])
     folder = sys.argv[3]
+    cpu_count = sys.argv[4]
     if os.path.isdir(folder):
         for file in glob.glob(f'{folder}/*.csv'):
             print(f'Processing {file}:')
-            predict(file)
+            predict(file, cpu_count)
     else:
-        predict(folder)
+        predict(folder, cpu_count)
