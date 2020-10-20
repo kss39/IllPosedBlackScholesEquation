@@ -90,7 +90,7 @@ if __name__ == '__main__':
     grid_count = int(sys.argv[1])
     beta = float(sys.argv[2])
     folder = sys.argv[3]
-    cpu_count = sys.argv[4]
+    cpu_count = int(sys.argv[4])
     if os.path.isdir(folder):
         for file in glob.glob(f'{folder}/*.csv'):
             print(f'Processing {file}:')
