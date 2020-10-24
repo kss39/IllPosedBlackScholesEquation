@@ -26,7 +26,7 @@ def preprocess(filename):
             if not data_block.isnull().values.any():
                 option_ask = data_block.iat[1]
                 option_bid = data_block.iat[2]
-                volatility = data_block.iat[0]
+                volatility = data_block.iat[0] * 100
                 stock_ask = math.ceil(data_block.iat[3] * 100) / 100
                 stock_bid = math.floor(data_block.iat[4] * 100) / 100
                 if stock_ask == stock_bid:
