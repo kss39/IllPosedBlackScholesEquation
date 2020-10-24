@@ -45,7 +45,7 @@ def preprocess(filename):
                 print(f'{option_name} on {today} is skipped due to insufficient data.')
     filename = Path(filename).stem
     output_file = f'../resources/preprocessed/{filename}_preprocessed.csv'
-    df.to_csv(output_file)
+    df.to_csv(output_file, index=False)
 
 
 if __name__ == '__main__':
