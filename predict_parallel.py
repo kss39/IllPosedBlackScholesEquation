@@ -36,7 +36,7 @@ def predict(file, cpu_count):
         pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count) for i in range(2, day_count-2)])
     filename = Path(file).stem
     output_file = f'output/prediction/{filename}_prediction.csv'
-    namespace.df.to_csv(output_file)
+    namespace.df.to_csv(output_file, index=False)
 
 
 def solve(i, df, namespace, output_lock, day_count):
@@ -97,3 +97,4 @@ if __name__ == '__main__':
             predict(file, cpu_count)
     else:
         predict(folder, cpu_count)
+
