@@ -33,9 +33,11 @@ if __name__ == '__main__':
         for file in glob.glob(folder):
             print(f'Processing {file}:')
             error_value_list.extend(append_errors(file))
-    plt.hist(error_value_list, density=False, bins='auto')  # `density=False` would make counts
+    plt.hist(np.array(error_value_list), density=False, bins=100, range=(0.0, 0.8), log=True)  # `density=False` would make counts
     plt.ylabel('Count')
     plt.xlabel('Absolute Error')
-    plt.xlim(xmin=0.0, xmax=0.8)
-    plt.show()
+    # plt.xlim(xmin=0.0, xmax=0.8)
+    # plt.show()
+    plt.title('Absolute Errors of 50k Estimates Compared to Real Data')
+    plt.savefig('../output/graphs/histogram_50k_log.png')
 
