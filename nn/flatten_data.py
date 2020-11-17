@@ -69,4 +69,4 @@ if __name__ == '__main__':
         output = flatten(folder)
     filename = Path(folder).stem
     output_file = f'../output/flatten/{filename}_flatten.csv'
-    output.to_csv(output_file)
+    output.to_csv(output_file, index=False)
