@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 debug = False
 k = 10
+iter_count = 400000
 
 class Net(nn.Module):
     def __init__(self):
@@ -63,9 +64,10 @@ if __name__ == '__main__':
     device = get_device()
     n = len(input_df)
 
-    loss_table = np.zeros((10, 11))
+    loss_table = np.zeros((10, 10))
 
     for i in range(k):
+        print(f'k={i}:')
         index = np.arange(n)
         X = input_df[0:n, :-2]
         y = input_df[0:n, -2:]
@@ -77,10 +79,12 @@ if __name__ == '__main__':
         y = torch.from_numpy(y_train).float().to(device)
 
         nnn = Net()
-        optimizer = torch.optim.SGD(nnn.parameters(), lr=0.0001)
+        lr = 0.0001
+        optimizer = torch.optim.SGD(nnn.parameters(), lr=lr)
         loss_func = nn.MSELoss(reduction='mean')
 
-        for t in range(200000):
+        iter_per_epoch = int(iter_count / 10)
+        for t in range(iter_count + 1):
             y_pred = nnn(X)
             loss = loss_func(y_pred, y)
 
@@ -88,16 +92,21 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            if t % 20000 == 0 and not t == 0:
-                print(f'Epoch {int(t/1000)}: Loss {loss}')
+            if t % iter_per_epoch == 0 and not t == 0:
+                print(f'Epoch {int(t/iter_per_epoch)}: Loss {loss}')
                 result = nnn(X_test)
                 loss = loss_func(result, y_test)
-                loss_table[i][int(t / 20000)] = loss
+                loss_table[i][int(t/iter_per_epoch) - 1] = loss
 
-    mean = np.mean(loss_table, axis=1)
-    std = np.std(loss_table, axis=1)
-    plt.errorbar(np.arange(11), mean, yerr=std, fmt='-o', label='lr=0.0001')
-    plt.savefig('../graphs/nnn.png')
+    mean = np.mean(loss_table, axis=0)
+    std = np.std(loss_table, axis=0)
+    plt.errorbar(np.arange(10) + 1, mean, yerr=std, fmt='-o', label=f'lr={lr}')
+    plt.xlabel('Epoch')
+    plt.ylabel('MSELoss with mean reduction')
+    plt.xticks(np.arange(10) + 1)
+    plt.legend()
+    plt.savefig('../output/graphs/nnn.png')
+
     # print(f'Test loss is {test_loss};')
     # print('For the final five test options,')
     # print('Estimates and real prices are:')
