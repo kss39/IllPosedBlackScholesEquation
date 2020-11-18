@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 debug = False
 k = 10
-iter_count = 400000
+iter_count = 200
 
 class Net(nn.Module):
     def __init__(self):
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         y = torch.from_numpy(y_train).float().to(device)
 
         nnn = Net()
-        lr = 0.0001
+        lr = 0.00005
         optimizer = torch.optim.SGD(nnn.parameters(), lr=lr)
         loss_func = nn.MSELoss(reduction='mean')
 
