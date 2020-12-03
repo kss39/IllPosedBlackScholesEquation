@@ -10,8 +10,29 @@ from pathlib import Path
 from model import num_solver as ns
 
 
-output_dictionary = {'option_name': [], 'input': [], 'grid_count': [], 'beta': [], 'date': [], 'estimates': [],
-                     'real': []}
+output_dictionary = {
+    'option_name': [],
+    'grid_count': [],
+    'beta': [],
+    'date': [],
+    'option_ask-2': [],
+    'option_ask-1': [],
+    'option_ask0': [],
+    'option_bid-2': [],
+    'option_bid-1': [],
+    'option_bid0': [],
+    'stock_ask0': [],
+    'stock_bid0': [],
+    'ivol-2': [],
+    'ivol-1': [],
+    'ivol-0': [],
+    'est+1': [],
+    'est+2': [],
+    'real+1': [],
+    'real+2': []
+}
+# output_dictionary = {'option_name': [], 'input': [], 'grid_count': [], 'beta': [], 'date': [], 'estimates': [],
+#                      'real': []}
 value_list = ['EOD_OPTION_PRICE_ASK',
               'EOD_OPTION_PRICE_BID',
               'IVOL_LAST',
@@ -40,12 +61,18 @@ def predict(file, cpu_count):
 
 
 def solve(i, df, namespace, output_lock, day_count):
-    today = df['DATE'][i]
-    data_block = df.iloc[i - 2:i + 1]
-    if len(set(data_block['OPTION_NAME'])) != 1:
-        return
+    if 'DATE' in df:
+        today = df['DATE'][i]
     else:
-        option_name = data_block['OPTION_NAME'].iat[0]
+        today = None
+    data_block = df.iloc[i - 2:i + 1]
+    if 'OPTION_NAME' in df:
+        if len(set(data_block['OPTION_NAME'])) > 1:
+            return
+        else:
+            option_name = data_block['OPTION_NAME'].iat[0]
+    else:
+        option_name = None
     value_block = data_block[value_list]
     if not value_block.isnull().values.any():
         # Then the 3-day data is good for us
@@ -62,13 +89,32 @@ def solve(i, df, namespace, output_lock, day_count):
         solution = res.x.reshape((m - 1, m - 2))[[math.ceil(m / 2 - 1), m - 2], math.ceil((m - 2) / 2)]
         real_future = []
         for j in range(2):
-            future_price = df['EOD_OPTION_PRICE_LAST'][i + j]
-            if np.isnan(future_price):
+            if 'EOD_OPTION_PRICE_LAST' in df:
+                future_price = df['EOD_OPTION_PRICE_LAST'][i + j]
+            else:
                 future_price = np.mean(df[['EOD_OPTION_PRICE_ASK', 'EOD_OPTION_PRICE_BID']].iloc[i + j, :])
             real_future.append(future_price)
-        row = {'option_name': option_name, 'input': input_data.data(), 'grid_count': grid_count, 'beta': beta,
-               'date': today,
-               'estimates': solution, 'real': real_future}
+        row = {
+            'option_name': option_name,
+            'grid_count': grid_count,
+            'beta': beta,
+            'date': today,
+            'option_ask-2': input_data.u_a_list[0],
+            'option_ask-1': input_data.u_a_list[1],
+            'option_ask0': input_data.u_a_list[2],
+            'option_bid-2': input_data.u_b_list[0],
+            'option_bid-1': input_data.u_b_list[1],
+            'option_bid0': input_data.u_b_list[2],
+            'stock_ask0': input_data.s_a,
+            'stock_bid0': input_data.s_b,
+            'ivol-2': input_data.ivol_list[0],
+            'ivol-1': input_data.ivol_list[1],
+            'ivol-0': input_data.ivol_list[2],
+            'est+1': float(solution[0]),
+            'est+2': float(solution[1]),
+            'real+1': float(real_future[0]),
+            'real+2': float(real_future[1])
+        }
         output_lock.acquire()
         try:
             namespace.df = namespace.df.append(row, ignore_index=True)

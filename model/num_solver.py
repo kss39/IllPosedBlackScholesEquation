@@ -61,6 +61,13 @@ class DataBlock:
             assert type(i) == float
         self.s_a = stock_ask
         self.s_b = stock_bid
+
+        # Used to store accurate historical data for later references.
+        self.u_a_list = option_ask
+        self.u_b_list = option_bid
+        self.ivol_list = volatility
+        # ----------------------------------
+
         self.u_a = QuadraticIE(*option_ask, self.s_a)
         self.u_b = QuadraticIE(*option_bid, self.s_b)
         self.volatility = QuadraticIE(*volatility)
