@@ -19,3 +19,10 @@ print('Minimizer is:')
 print(solution)
 
 print('Estimates for 1tau and 2tau: ', solution[[math.ceil(m/2-1), m-2], math.ceil((m-2)/2)])
+
+if solution[[math.ceil(m/2-1), m-2], math.ceil((m-2)/2)][0] >= block.u_a.at_day(1) + 0.03:
+  print("Buy 5000 options today to sell tomorrow")
+if solution[[math.ceil(m/2-1), m-2], math.ceil((m-2)/2)][1] >= block.u_a.at_day(2) + 0.03:
+  print("Buy 5000 options today to sell the day after tomorrow")
+
+  
