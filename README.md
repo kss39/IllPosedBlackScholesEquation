@@ -1,4 +1,4 @@
-# Ill Posed Black-Scholes-Merton Equation
+# Ill Posed Black-Scholes-Merton Equation Solver
 
 ### Run a demo
 Run `python test.py`.
