@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import glob
-from pathlib import Path
 import model.num_solver as ns
 
 output_dictionary = {
@@ -38,9 +37,6 @@ value_list = ['EOD_OPTION_PRICE_ASK',
               'EOD_UNDERLYING_PRICE_ASK',
               'EOD_UNDERLYING_PRICE_BID']
 
-grid_count = 20
-beta = 0.01
-
 
 def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     """
@@ -55,21 +51,29 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     :param beta: beta parameter for Tikhonov regularization
     :return a Dataframe of predictions
     """
+    # Temporarily disable Numpy's multithreading since
+    # it will slow down multiprocessing module.
+    temp_openblas = os.environ['OPENBLAS_NUM_THREADS']
+    temp_mkl = os.environ['MKL_NUM_THREADS']
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+
     df = pd.read_csv(file)
 
     day_count = len(df)
-    # # TODO: Debug!
-    # day_count = 20
     manager = mp.Manager()
     output_dt_lock = manager.Lock()
     namespace = manager.Namespace()
     namespace.df = pd.DataFrame(output_dictionary)
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
-        pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count) for i in range(2, day_count-2)])
+        pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)])
+
+    os.environ['OPENBLAS_NUM_THREADS'] = temp_openblas
+    os.environ['MKL_NUM_THREADS'] = temp_mkl
     return namespace.df
 
 
-def solve(i, df, namespace, output_lock, day_count):
+def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
     if 'DATE' in df:
         today = df['DATE'][i]
     else:

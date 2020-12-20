@@ -1,8 +1,5 @@
 import numpy as np
-import scipy.sparse.linalg as linalg
 from scipy.optimize import minimize
-
-from scipy.linalg import inv
 
 from . import toeplitz_matrix as tm
 
