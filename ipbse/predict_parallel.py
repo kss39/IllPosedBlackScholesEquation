@@ -7,8 +7,7 @@ import numpy as np
 import multiprocessing as mp
 import glob
 from pathlib import Path
-from model import num_solver as ns
-
+import model.num_solver as ns
 
 output_dictionary = {
     'option_name': [],
@@ -43,7 +42,19 @@ grid_count = 20
 beta = 0.01
 
 
-def predict(file, cpu_count):
+def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
+    """
+    Predict the option+1 and option+2 price using the data given.
+    The results are in a output csv file.
+
+    Note that the results are in somewhat random order in time, due
+    to parallelization.
+    :param file: the .csv file of input
+    :param cpu_count: thread count. Used for parallelization.
+    :param grid_count: the grid count for each dimension.
+    :param beta: beta parameter for Tikhonov regularization
+    :return a Dataframe of predictions
+    """
     df = pd.read_csv(file)
 
     day_count = len(df)
@@ -55,9 +66,7 @@ def predict(file, cpu_count):
     namespace.df = pd.DataFrame(output_dictionary)
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
         pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count) for i in range(2, day_count-2)])
-    filename = Path(file).stem
-    output_file = f'output/prediction/{filename}_prediction.csv'
-    namespace.df.to_csv(output_file, index=False)
+    return namespace.df
 
 
 def solve(i, df, namespace, output_lock, day_count):

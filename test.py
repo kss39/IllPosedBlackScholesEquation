@@ -1,6 +1,4 @@
 from model import num_solver as ns
-import math
-
 
 block = ns.DataBlock(today='10/19/2016',\
                        option_ask = [0.86, 0.86, 0.86],\
