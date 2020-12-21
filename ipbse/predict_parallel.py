@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import glob
-import model.num_solver as ns
+import ipbse.model.num_solver as ns
 
 output_dictionary = {
     'option_name': [],
@@ -67,10 +67,12 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     """
     # Temporarily disable Numpy's multithreading since
     # it will slow down multiprocessing module.
-    temp_openblas = os.environ['OPENBLAS_NUM_THREADS']
-    temp_mkl = os.environ['MKL_NUM_THREADS']
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
+    if 'OPENBLAS_NUM_THREADS' in os.environ:
+        temp_openblas = os.environ['OPENBLAS_NUM_THREADS']
+        os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    if 'MKL_NUM_THREADS' in os.environ:
+        temp_mkl = os.environ['MKL_NUM_THREADS']
+        os.environ['MKL_NUM_THREADS'] = '1'
 
     df = pd.read_csv(file)
 
@@ -82,8 +84,10 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
         pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)])
 
-    os.environ['OPENBLAS_NUM_THREADS'] = temp_openblas
-    os.environ['MKL_NUM_THREADS'] = temp_mkl
+    if 'OPENBLAS_NUM_THREADS' in os.environ:
+        os.environ['OPENBLAS_NUM_THREADS'] = temp_openblas
+    if 'MKL_NUM_THREADS' in os.environ:
+        os.environ['MKL_NUM_THREADS'] = temp_mkl
     return namespace.df
 
 
@@ -114,13 +118,13 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         res = input_data.solve()
         m = grid_count
         solution = res.x.reshape((m - 1, m - 2))[[math.ceil(m / 2 - 1), m - 2], math.ceil((m - 2) / 2)]
-        real_future = []
+        real_future = np.zeros((2, 3))
         for j in range(2):
+            real_future[j, 0:2] = df[['EOD_OPTION_PRICE_ASK', 'EOD_OPTION_PRICE_BID']].iloc[i + j, :].to_numpy()
             if 'EOD_OPTION_PRICE_LAST' in df:
-                future_price = df['EOD_OPTION_PRICE_LAST'][i + j]
+                real_future[j, 2] = df['EOD_OPTION_PRICE_LAST'][i + j]
             else:
-                future_price = np.mean(df[['EOD_OPTION_PRICE_ASK', 'EOD_OPTION_PRICE_BID']].iloc[i + j, :])
-            real_future.append(future_price)
+                real_future[j, 2] = np.mean(real_future[j, 0:1])
         row = {
             'option_name': option_name,
             'grid_count': grid_count,
@@ -139,8 +143,12 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
             'ivol-0': input_data.ivol_list[2],
             'est+1': float(solution[0]),
             'est+2': float(solution[1]),
-            'real+1': float(real_future[0]),
-            'real+2': float(real_future[1])
+            'real+1': float(real_future[0, 2]),
+            'real+2': float(real_future[1, 2]),
+            'real_ask+1': float(real_future[0, 0]),
+            'real_ask+2': float(real_future[1, 0]),
+            'real_bid+1': float(real_future[0, 1]),
+            'real_bid+2': float(real_future[1, 1])
         }
         output_lock.acquire()
         try:
