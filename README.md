@@ -3,7 +3,7 @@
 ### Setup
 
 Clone the `prod` branch repository: `https://github.com/kss39/IllPosedBlackScholesEquation/tree/prod`,
-and at the repository root folder, run `pip install .`
+and then at the repository root folder, run `pip install .`
 
 Now you have a Python module called `ipbse` ready to import.
 
