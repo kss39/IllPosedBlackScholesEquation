@@ -11,6 +11,7 @@ block = ns.DataBlock(today='10/19/2016',\
 m = 20
 beta = 0.01
 
+
 block.create_system(m, beta)
 result = block.solve()
 solution = result.x.reshape((m-1,m-2))

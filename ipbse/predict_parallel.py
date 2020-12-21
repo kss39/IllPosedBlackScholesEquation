@@ -2,8 +2,10 @@ import math
 import sys
 import os
 
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
+from ipbse.misc import istarmap
 import multiprocessing as mp
 import glob
 import ipbse.model.num_solver as ns
@@ -82,7 +84,10 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     namespace = manager.Namespace()
     namespace.df = pd.DataFrame(output_dictionary)
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
-        pool.starmap(solve, [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)])
+        iterable = [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)]
+        for _ in tqdm(pool.istarmap(solve, iterable),
+                           total=len(iterable)):
+            pass
 
     if 'OPENBLAS_NUM_THREADS' in os.environ:
         os.environ['OPENBLAS_NUM_THREADS'] = temp_openblas
@@ -153,7 +158,7 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         output_lock.acquire()
         try:
             namespace.df = namespace.df.append(row, ignore_index=True)
-            print(f'Solved {option_name} on {today}, finished {i - 1}/{day_count - 4}')
+            # print(f'Solved {option_name} on {today}, finished {i - 1}/{day_count - 4}')
         finally:
             output_lock.release()
     else:
