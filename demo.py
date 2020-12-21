@@ -1,5 +1,4 @@
 import ipbse.model.num_solver as ns
-import ipbse.predict_parallel.predict
 import math
 
 block = ns.DataBlock(today='10/19/2016',\
@@ -9,10 +8,8 @@ block = ns.DataBlock(today='10/19/2016',\
                        stock_ask = 4.66,\
                        stock_bid = 4.65)
 
-m = 30
+m = 20
 beta = 0.01
-
-predict()
 
 block.create_system(m, beta)
 result = block.solve()
