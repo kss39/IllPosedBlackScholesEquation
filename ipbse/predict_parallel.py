@@ -39,17 +39,31 @@ value_list = ['EOD_OPTION_PRICE_ASK',
 
 
 def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
-    """
-    Predict the option+1 and option+2 price using the data given.
+    """Predict the option+1 and option+2 price using the data given.
     The results are in a output csv file.
 
     Note that the results are in somewhat random order in time, due
     to parallelization.
-    :param file: the .csv file of input
-    :param cpu_count: thread count. Used for parallelization.
-    :param grid_count: the grid count for each dimension.
-    :param beta: beta parameter for Tikhonov regularization
-    :return a Dataframe of predictions
+
+    For the input file, there are five columns needed:
+        'EOD_OPTION_PRICE_ASK': End of day option ask price
+        'EOD_OPTION_PRICE_BID': End of day option bid price
+        'IVOL_LAST': Implied volatility
+        'EOD_UNDERLYING_PRICE_ASK': End of day equity ask price
+        'EOD_UNDERLYING_PRICE_BID': End of day equity bid price
+    Also, there are optional columns:
+        'DATE': The day of the row
+        'EOD_OPTION_PRICE_LAST': Used for validating predictions.
+            If DNE, the mean of option ask and bid price can be used.
+    
+    Args:
+        file (str): the .csv file of input
+        cpu_count (int, optional): thread count. Used for parallelization.. Defaults to 1.
+        grid_count (int, optional): the grid count for each dimension.. Defaults to 20.
+        beta (float, optional): beta parameter for Tikhonov regularization. Defaults to 0.01.
+
+    Returns:
+        Dataframe: a Dataframe of predictions
     """
     # Temporarily disable Numpy's multithreading since
     # it will slow down multiprocessing module.
@@ -156,4 +170,3 @@ if __name__ == '__main__':
             predict(file, cpu_count)
     else:
         predict(folder, cpu_count)
-

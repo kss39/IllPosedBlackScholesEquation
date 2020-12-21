@@ -24,5 +24,3 @@ def D_ss(m: int, ds: float):
     identity_except_init[0, 0] = 0
     matrix = np.kron(identity_except_init, diff) / (ds ** 2)
     return matrix
-
-
