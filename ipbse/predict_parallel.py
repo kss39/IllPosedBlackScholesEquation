@@ -54,6 +54,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
         'EOD_UNDERLYING_PRICE_ASK': End of day equity ask price
         'EOD_UNDERLYING_PRICE_BID': End of day equity bid price
     Also, there are optional columns:
+        'OPTION_NAME': Name of the option
         'DATE': The day of the row
         'EOD_OPTION_PRICE_LAST': Used for validating predictions.
             If DNE, the mean of option ask and bid price can be used.
