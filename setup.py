@@ -21,5 +21,5 @@ setuptools.setup(
     install_requires=[
         'numpy', 'scipy', 'pandas', 'tqdm'
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.8',
 )
