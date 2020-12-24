@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import minimize
 
-from . import toeplitz_matrix as tm
+from ipbse.model import toeplitz_matrix as tm
 
 tau = 1 / 255
 m = 100
