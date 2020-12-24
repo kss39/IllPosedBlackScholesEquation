@@ -2,6 +2,18 @@ import math
 import sys
 import os
 
+# Temporarily disable Numpy's multithreading since
+# it will slow down multiprocessing module.
+# These settings won't affect permanently, it will reset after
+# the python process has ended.
+#
+# Personally speaking, I got an 8x performance boost on this code
+# when I do this.
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
@@ -68,14 +80,6 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     Returns:
         Dataframe: a Dataframe of predictions
     """
-    # Temporarily disable Numpy's multithreading since
-    # it will slow down multiprocessing module.
-    if 'OPENBLAS_NUM_THREADS' in os.environ:
-        temp_openblas = os.environ['OPENBLAS_NUM_THREADS']
-        os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    if 'MKL_NUM_THREADS' in os.environ:
-        temp_mkl = os.environ['MKL_NUM_THREADS']
-        os.environ['MKL_NUM_THREADS'] = '1'
 
     df = pd.read_csv(file)
 
@@ -87,13 +91,9 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
         iterable = [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)]
         for _ in tqdm(pool.istarmap(solve, iterable),
-                           total=len(iterable)):
+                           total=len(iterable), smoothing=0.0):
             pass
 
-    if 'OPENBLAS_NUM_THREADS' in os.environ:
-        os.environ['OPENBLAS_NUM_THREADS'] = temp_openblas
-    if 'MKL_NUM_THREADS' in os.environ:
-        os.environ['MKL_NUM_THREADS'] = temp_mkl
     return namespace.df
 
 
@@ -127,10 +127,10 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         real_future = np.zeros((2, 3))
         for j in range(2):
             real_future[j, 0:2] = df[['EOD_OPTION_PRICE_ASK', 'EOD_OPTION_PRICE_BID']].iloc[i + j, :].to_numpy()
-            if 'EOD_OPTION_PRICE_LAST' in df:
+            if 'EOD_OPTION_PRICE_LAST' in df and not np.isnan(df['EOD_OPTION_PRICE_LAST'][i + j]):
                 real_future[j, 2] = df['EOD_OPTION_PRICE_LAST'][i + j]
             else:
-                real_future[j, 2] = np.mean(real_future[j, 0:1])
+                real_future[j, 2] = np.mean(real_future[j, 0:2])
         row = {
             'option_name': option_name,
             'grid_count': grid_count,
@@ -159,15 +159,12 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         output_lock.acquire()
         try:
             namespace.df = namespace.df.append(row, ignore_index=True)
-            # print(f'Solved {option_name} on {today}, finished {i - 1}/{day_count - 4}')
         finally:
             output_lock.release()
     else:
         print(f'{option_name} on {today} is skipped due to insufficient data; finished {i - 1}/{day_count - 4}')
 
 
-# Time testing: grid=20, beta=0.01, 16 blocks, 64.26s
-# After disabling Numpy parallel: 28.36s
 if __name__ == '__main__':
     if not len(sys.argv) == 5:
         print('Usage: python predict.py [grid_count] [beta] [folder] [cpu_count]')
