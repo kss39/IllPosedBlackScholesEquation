@@ -125,7 +125,7 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         m = grid_count
         solution = res.x.reshape((m - 1, m - 2))[[math.ceil(m / 2 - 1), m - 2], math.ceil((m - 2) / 2)]
         real_future = np.zeros((2, 3))
-        for j in range(2):
+        for j in range(1, 3):
             real_future[j, 0:2] = df[['EOD_OPTION_PRICE_ASK', 'EOD_OPTION_PRICE_BID']].iloc[i + j, :].to_numpy()
             if 'EOD_OPTION_PRICE_LAST' in df and not np.isnan(df['EOD_OPTION_PRICE_LAST'][i + j]):
                 real_future[j, 2] = df['EOD_OPTION_PRICE_LAST'][i + j]
