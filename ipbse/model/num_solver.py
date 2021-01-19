@@ -1,7 +1,10 @@
 import numpy as np
+import scipy.sparse.linalg as linalg
 from scipy.optimize import minimize
 
-from ipbse.model import toeplitz_matrix as tm
+from scipy.linalg import inv
+
+from . import toeplitz_matrix as tm
 
 tau = 1 / 255
 m = 100
@@ -58,13 +61,6 @@ class DataBlock:
             assert type(i) == float
         self.s_a = stock_ask
         self.s_b = stock_bid
-
-        # Used to store accurate historical data for later references.
-        self.u_a_list = option_ask
-        self.u_b_list = option_bid
-        self.ivol_list = volatility
-        # ----------------------------------
-
         self.u_a = QuadraticIE(*option_ask, self.s_a)
         self.u_b = QuadraticIE(*option_bid, self.s_b)
         self.volatility = QuadraticIE(*volatility)
@@ -131,9 +127,9 @@ class DataBlock:
         f_vector = f_vector[boundary_indices]
 
         # Normalize each row of the system Ax = b, to prevent float overflowing
-        norms = np.linalg.norm(lu, axis=1)
-        lu = (lu.T / norms).T
-        b_rhs /= norms
+        norm = np.linalg.norm(lu)
+        lu = lu / norm
+        b_rhs /= norm
 
         # Construct the Tikhonov-like functional
         def j_beta(u):
