@@ -1,10 +1,10 @@
 import numpy as np
+import scipy.sparse.linalg as linalg
 from scipy.optimize import minimize
 
 from ipbse.model import toeplitz_matrix as tm
 
 tau = 1 / 255
-m = 100
 
 
 class QuadraticIE:
@@ -131,9 +131,9 @@ class DataBlock:
         f_vector = f_vector[boundary_indices]
 
         # Normalize each row of the system Ax = b, to prevent float overflowing
-        norms = np.linalg.norm(lu, axis=1)
-        lu = (lu.T / norms).T
-        b_rhs /= norms
+        norm = np.linalg.norm(lu)
+        lu = lu / norm
+        b_rhs /= norm
 
         # Construct the Tikhonov-like functional
         def j_beta(u):
