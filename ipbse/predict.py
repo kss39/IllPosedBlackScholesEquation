@@ -40,14 +40,27 @@ output_dictionary = {
     'ivol-0': [],
     'est+1': [],
     'est+2': [],
-    'real+1': [],
-    'real+2': []
+    'option_mean+1': [],
+    'option_mean+2': [],
+    'option_ask+1': [],
+    'option_ask+2': [],
+    'option_bid+1': [],
+    'option_bid+2': [],
+    'stock_ask-1': [],
+    'stock_ask-2': [],
+    'stock_ask+1': [],
+    'stock_ask+2': [],
+    'stock_bid-1': [],
+    'stock_bid-2': [],
+    'stock_bid+1': [],
+    'stock_bid+2': [],
+    'ivol+1': [],
+    'ivol+2': []
 }
-# output_dictionary = {'option_name': [], 'input': [], 'grid_count': [], 'beta': [], 'date': [], 'estimates': [],
-#                      'real': []}
+
 value_list = ['EOD_OPTION_PRICE_ASK',
               'EOD_OPTION_PRICE_BID',
-              'IVOL_LAST',
+              'IVOL_ASK',
               'EOD_UNDERLYING_PRICE_ASK',
               'EOD_UNDERLYING_PRICE_BID']
 
@@ -62,7 +75,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     For the input file, there are five columns needed:
         'EOD_OPTION_PRICE_ASK': End of day option ask price
         'EOD_OPTION_PRICE_BID': End of day option bid price
-        'IVOL_LAST': Implied volatility
+        'IVOL_ASK': Implied volatility
         'EOD_UNDERLYING_PRICE_ASK': End of day equity ask price
         'EOD_UNDERLYING_PRICE_BID': End of day equity bid price
     Also, there are optional columns:
@@ -73,8 +86,8 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     
     Args:
         file (str): the .csv file of input
-        cpu_count (int, optional): thread count. Used for parallelization.. Defaults to 1.
-        grid_count (int, optional): the grid count for each dimension.. Defaults to 20.
+        cpu_count (int, optional): thread count. Used for parallelization. Defaults to 1.
+        grid_count (int, optional): the grid count for each dimension. Defaults to 20.
         beta (float, optional): beta parameter for Tikhonov regularization. Defaults to 0.01.
 
     Returns:
@@ -91,7 +104,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
         iterable = [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)]
         for _ in tqdm(pool.istarmap(solve, iterable),
-                           total=len(iterable), smoothing=0.0):
+                           total=len(iterable), smoothing=0.0, leave=False):
             pass
 
     return namespace.df
@@ -115,7 +128,7 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         # Then the 3-day data is good for us
         option_ask = value_block['EOD_OPTION_PRICE_ASK'].values
         option_bid = value_block['EOD_OPTION_PRICE_BID'].values
-        volatility = value_block['IVOL_LAST'].values
+        volatility = value_block['IVOL_ASK'].values
         stock_ask = float(value_block['EOD_UNDERLYING_PRICE_ASK'].iat[2])
         stock_bid = float(value_block['EOD_UNDERLYING_PRICE_BID'].iat[2])
         input_data = ns.DataBlock(today=today, option_ask=option_ask, option_bid=option_bid,
@@ -149,12 +162,22 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
             'ivol-0': input_data.ivol_list[2],
             'est+1': float(solution[0]),
             'est+2': float(solution[1]),
-            'real+1': float(real_future[0, 2]),
-            'real+2': float(real_future[1, 2]),
-            'real_ask+1': float(real_future[0, 0]),
-            'real_ask+2': float(real_future[1, 0]),
-            'real_bid+1': float(real_future[0, 1]),
-            'real_bid+2': float(real_future[1, 1])
+            'option_mean+1': float(real_future[0, 2]),
+            'option_mean+2': float(real_future[1, 2]),
+            'option_ask+1': float(real_future[0, 0]),
+            'option_ask+2': float(real_future[1, 0]),
+            'option_bid+1': float(real_future[0, 1]),
+            'option_bid+2': float(real_future[1, 1]),
+            'stock_ask-1': float(df['EOD_UNDERLYING_PRICE_ASK'].iat[i - 1]),
+            'stock_ask-2': float(df['EOD_UNDERLYING_PRICE_ASK'].iat[i - 2]),
+            'stock_ask+1': float(df['EOD_UNDERLYING_PRICE_ASK'].iat[i + 1]),
+            'stock_ask+2': float(df['EOD_UNDERLYING_PRICE_ASK'].iat[i + 2]),
+            'stock_bid-1': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i - 1]),
+            'stock_bid-2': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i - 2]),
+            'stock_bid+1': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i + 1]),
+            'stock_bid+2': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i + 2]),
+            'ivol+1': float(df['IVOL_ASK'].iat[i + 1]),
+            'ivol+2': float(df['IVOL_ASK'].iat[i + 2]),
         }
         output_lock.acquire()
         try:
