@@ -60,7 +60,7 @@ output_dictionary = {
 
 value_list = ['EOD_OPTION_PRICE_ASK',
               'EOD_OPTION_PRICE_BID',
-              'IVOL_ASK',
+              'IVOL_LAST',
               'EOD_UNDERLYING_PRICE_ASK',
               'EOD_UNDERLYING_PRICE_BID']
 
@@ -75,7 +75,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     For the input file, there are five columns needed:
         'EOD_OPTION_PRICE_ASK': End of day option ask price
         'EOD_OPTION_PRICE_BID': End of day option bid price
-        'IVOL_ASK': Implied volatility
+        'IVOL_LAST': Implied volatility
         'EOD_UNDERLYING_PRICE_ASK': End of day equity ask price
         'EOD_UNDERLYING_PRICE_BID': End of day equity bid price
     Also, there are optional columns:
@@ -128,9 +128,11 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
         # Then the 3-day data is good for us
         option_ask = value_block['EOD_OPTION_PRICE_ASK'].values
         option_bid = value_block['EOD_OPTION_PRICE_BID'].values
-        volatility = value_block['IVOL_ASK'].values
+        volatility = value_block['IVOL_LAST'].values
         stock_ask = float(value_block['EOD_UNDERLYING_PRICE_ASK'].iat[2])
         stock_bid = float(value_block['EOD_UNDERLYING_PRICE_BID'].iat[2])
+        if (stock_ask - stock_bid) == 0:
+            stock_bid -= 0.01
         input_data = ns.DataBlock(today=today, option_ask=option_ask, option_bid=option_bid,
                                   volatility=volatility, stock_ask=stock_ask, stock_bid=stock_bid)
         input_data.create_system(grid_count, beta)
@@ -176,8 +178,8 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
             'stock_bid-2': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i - 2]),
             'stock_bid+1': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i + 1]),
             'stock_bid+2': float(df['EOD_UNDERLYING_PRICE_BID'].iat[i + 2]),
-            'ivol+1': float(df['IVOL_ASK'].iat[i + 1]),
-            'ivol+2': float(df['IVOL_ASK'].iat[i + 2]),
+            'ivol+1': float(df['IVOL_LAST'].iat[i + 1]),
+            'ivol+2': float(df['IVOL_LAST'].iat[i + 2]),
         }
         output_lock.acquire()
         try:
