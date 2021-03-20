@@ -1,4 +1,5 @@
 import ipbse.model.num_solver as ns
+import ipbse.model.toeplitz_matrix as tm
 import math
 
 block = ns.DataBlock(today='10/19/2016',\
@@ -12,7 +13,7 @@ m = 20
 beta = 0.01
 
 
-block.create_system(m, beta)
+block.create_system(m, beta, tm.D_t_tshape, tm.D_ss_tshape)
 result = block.solve()
 solution = result.x.reshape((m-1,m-2))
 print('Minimizer is:')

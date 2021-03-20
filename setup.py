@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ipbse",
-    version="0.1.7",
+    version="0.1.9",
     author="Tianyang Wang",
     author_email="wangty.kss@gmail.com",
     description="IPBSE solver",
