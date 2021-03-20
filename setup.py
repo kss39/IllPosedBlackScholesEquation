@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ipbse",
-    version="0.1.4",
+    version="0.1.9",
     author="Tianyang Wang",
     author_email="wangty.kss@gmail.com",
     description="IPBSE solver",
@@ -19,7 +19,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        'numpy', 'scipy', 'pandas', 'tqdm'
+        'numpy', 'scipy', 'pandas', 'tqdm', 'matplotlib'
     ],
     python_requires='>=3.8',
 )

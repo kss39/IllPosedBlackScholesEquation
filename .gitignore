@@ -133,3 +133,7 @@ dmypy.json
 
 # VSCode
 .vscode/
+bloomberg_all_predictions.csv
+test_data_prediction.csv
+ipbse/misc/all_predictions_0223.csv
+ipbse/misc/all_predictions.csv

@@ -86,7 +86,7 @@ class DataBlock:
                        'volatility': self.volatility.to_list}
         return str(string_dict)
 
-    def create_system(self, grid_count: int, beta: float):
+    def create_system(self, grid_count: int, beta: float, dt, dss):
         """
         Creates the system of equation with grid count m.
         Returns the Tikhonov-like functional J_beta which needs minimization.
@@ -119,8 +119,8 @@ class DataBlock:
         s = np.linspace(self.s_b, self.s_a, self.m)
         t = np.linspace(0, 2 * tau, grid_count)
         meshgrid = np.meshgrid(s, t)
-        lu = A(tm.D_t(grid_count, 2 * tau / grid_count),
-               tm.D_ss(grid_count, (self.s_a - self.s_b) / grid_count),
+        lu = A(dt(grid_count, 2 * tau / grid_count),
+               dss(grid_count, (self.s_a - self.s_b) / grid_count),
                R(meshgrid, self.func_sigma2))
 
         b_rhs = - lu @ u_bd
