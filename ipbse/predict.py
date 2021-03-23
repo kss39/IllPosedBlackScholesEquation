@@ -18,6 +18,7 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from ipbse.misc import istarmap
+from ipbse.model import toeplitz_matrix as tm
 import multiprocessing as mp
 import glob
 import ipbse.model.num_solver as ns
@@ -65,7 +66,7 @@ value_list = ['EOD_OPTION_PRICE_ASK',
               'EOD_UNDERLYING_PRICE_BID']
 
 
-def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
+def predict(file: str, cpu_count=1, grid_count=20, beta=0.01, dt=tm.D_t_tshape, dss=tm.D_ss_tshape):
     """Predict the option+1 and option+2 price using the data given.
     The results are in a output csv file.
 
@@ -102,7 +103,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     namespace = manager.Namespace()
     namespace.df = pd.DataFrame(output_dictionary)
     with mp.Pool(processes=cpu_count, initargs=(output_dt_lock,)) as pool:
-        iterable = [(i, df, namespace, output_dt_lock, day_count, grid_count, beta) for i in range(2, day_count-2)]
+        iterable = [(i, df, namespace, output_dt_lock, day_count, grid_count, beta, dt, dss) for i in range(2, day_count-2)]
         for _ in tqdm(pool.istarmap(solve, iterable),
                            total=len(iterable), smoothing=0.0, leave=False):
             pass
@@ -110,7 +111,7 @@ def predict(file: str, cpu_count=1, grid_count=20, beta=0.01):
     return namespace.df
 
 
-def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
+def solve(i, df, namespace, output_lock, day_count, grid_count, beta, dt, dss):
     if 'DATE' in df:
         today = df['DATE'][i]
     else:
@@ -135,7 +136,7 @@ def solve(i, df, namespace, output_lock, day_count, grid_count, beta):
             stock_bid -= 0.01
         input_data = ns.DataBlock(today=today, option_ask=option_ask, option_bid=option_bid,
                                   volatility=volatility, stock_ask=stock_ask, stock_bid=stock_bid)
-        input_data.create_system(grid_count, beta)
+        input_data.create_system(grid_count, beta, dt, dss)
         res = input_data.solve()
         m = grid_count
         solution = res.x.reshape((m - 1, m - 2))[[math.ceil(m / 2 - 1), m - 2], math.ceil((m - 2) / 2)]
